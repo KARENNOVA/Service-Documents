@@ -1,0 +1,46 @@
+version: "3.8"
+services:
+  database:
+    image: postgres:13
+    container_name: db_pg_docs
+    ports:
+      - ${DB_PORT:-5432}:5432
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-postgres}
+      POSTGRES_USER: ${PG_USER:-postgres}
+      POSTGRES_DB: ${PG_DB_NAME}
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+      - ./my-postgres.conf:/etc/postgresql/postgresql.conf
+      - ./my-pg_hba.conf:/etc/postgresql/pg_hba.conf
+    networks:
+      vpcbr:
+        ipv4_address: 127.0.0.1
+  server:
+    build: .
+    depends_on:
+      - database
+    ports:
+      - 3334:3334
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3334
+      - NODE_ENV=development
+      - APP_KEY=Xhv9yKujQsnpPF2QqUikLn1f1e_xAV-M
+      - DRIVE_DISK=local
+      - DB_CONNECTION=pg
+      - PG_HOST=127.0.0.1
+      - PG_PORT=5432
+      - PG_USER=devops
+      - PG_PASSWORD=Th1s1s4N3wpwd*.
+      - PG_DB_NAME=dbdocs
+      - DATABASE_URL=`postgres://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:5432/${PG_DB_NAME}`
+volumes:
+  data:
+networks:
+  vpcbr:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 127.0.0.0/16
+          gateway: 127.0.0.1

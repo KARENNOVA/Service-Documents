@@ -1,0 +1,30 @@
+{
+  "name": "rest-docs",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ace serve --watch",
+    "build": "node ace build --production",
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "@adonisjs/assembler": "^5.3.7",
+    "adonis-preset-ts": "^2.1.0",
+    "typescript": "^4.2.4",
+    "youch": "^2.2.2",
+    "youch-terminal": "^1.1.1"
+  },
+  "dependencies": {
+    "@adonisjs/core": "^5.3.4",
+    "@adonisjs/lucid": "^16.2.1",
+    "@adonisjs/repl": "^3.1.6",
+    "jsonwebtoken": "^8.5.1",
+    "luxon": "^2.0.2",
+    "moment": "^2.29.1",
+    "pg": "^8.7.1",
+    "pino-pretty": "^7.0.1",
+    "proxy-addr": "^2.0.7",
+    "reflect-metadata": "^0.1.13",
+    "source-map-support": "^0.5.20"
+  }
+}
