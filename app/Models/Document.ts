@@ -6,6 +6,8 @@ export default class Document extends BaseModel {
   public id: string;
 
   @column()
+  public type: string | undefined;
+  @column()
   public name: string;
   @column()
   public original_name: string;
