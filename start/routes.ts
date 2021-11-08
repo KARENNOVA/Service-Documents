@@ -46,6 +46,11 @@ Route.group(() => {
       const { default: DocsController } = await import(
         "App/Controllers/Http/DocsController"
       );
+
+      if (ctx.request.qs().ids) {
+        return new DocsController().getMany(ctx);
+      }
+
       return new DocsController().getAll(ctx);
     });
 
@@ -54,6 +59,13 @@ Route.group(() => {
         "App/Controllers/Http/DocsController"
       );
       return new DocsController().update(ctx);
+    });
+
+    Route.delete("/", async (ctx) => {
+      const { default: DocsController } = await import(
+        "App/Controllers/Http/DocsController"
+      );
+      return new DocsController().delete(ctx);
     });
   }).prefix("/docs");
 }).prefix("/v1");

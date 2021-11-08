@@ -58,15 +58,21 @@ export default class DocsController {
     }
 
     const auditTrail: AuditTrail = new AuditTrail();
+    let dataToCreate: any = {
+      id,
+      name,
+      original_name: pdf.clientName,
+      path: pdf.filePath,
+      status: 1,
+      audit_trail: auditTrail.getAsJson(),
+    };
+
+    if (ctx.request.body().type) {
+      dataToCreate.type = ctx.request.body().type;
+    }
+
     try {
-      const document = await Document.create({
-        id,
-        name,
-        original_name: pdf.clientName,
-        path: pdf.filePath,
-        status: 1,
-        audit_trail: auditTrail.getAsJson(),
-      });
+      const document = await Document.create(dataToCreate);
 
       return ctx.response.json({
         message: "¡PDF guardado exitosamente!",
@@ -104,20 +110,25 @@ export default class DocsController {
   /**
    * details
    */
-  public async details(ctx: HttpContextContract) {
-    try {
-      const { id } = ctx.request.params();
+  public async details(ctx: HttpContextContract, _id?: string) {
+    let id;
 
+    if (_id) id = _id;
+    else id = ctx.request.params().id;
+
+    try {
       const documents: any = await Document.query().where("id", id);
 
+      if (_id) return documents[0];
       return ctx.response.json({
         message: `Información detallada del documento ${documents[0]["id"]}`,
         results: documents[0],
       });
     } catch (error) {
+      console.error(error);
       return ctx.response.json({
-        message: "Error al obtener lso detalles del Documento",
-        error,
+        message: "Error al obtener los detalles del Documento",
+        error: error,
       });
     }
   }
@@ -137,6 +148,44 @@ export default class DocsController {
       return ctx.response.json({
         message: "Error obteniendo todos los documentos",
         error,
+      });
+    }
+  }
+
+  /**
+   * getMany
+   */
+  public async getMany(ctx: HttpContextContract) {
+    const { ids } = ctx.request.qs();
+    let detailsArray: any[] = [];
+    let idsArray: string[] = ids.split(",");
+
+    // await idsArray.map(async (id) => {
+    //   console.log(id);
+    //   const tmp = await this.details(ctx, id.trim());
+    //   console.log(tmp["$attributes"]);
+
+    //   detailsArray.push(tmp["$attributes"]);
+    // });
+
+    try {
+      const documents = await Document.findMany(idsArray);
+      console.log(documents);
+      documents.map((document) => {
+        detailsArray.push(document["$attributes"]);
+      });
+
+      return ctx.response.json({
+        message: `Información detallada de los documentos con ID: ${idsArray.join(
+          ", "
+        )}`,
+        results: detailsArray,
+      });
+    } catch (error) {
+      console.error(error);
+      return ctx.response.json({
+        message: "Error al obtener los detalles del Documento",
+        error: error,
       });
     }
   }
@@ -233,4 +282,46 @@ export default class DocsController {
   }
 
   // DELTE
+  /**
+   * delete
+   */
+  public async delete(ctx: HttpContextContract) {
+    const { id } = ctx.request.params();
+
+    if (id && typeof id === "string") {
+      try {
+        const document = await Document.findOrFail(id);
+
+        fs.unlink(document["path"], (err) => {
+          if (err) {
+            if (err.code !== "ENOENT") throw err;
+          }
+          console.log(
+            "Documento borrado: " +
+              document["path"].split("/tmp/core/").pop()?.trim()
+          );
+        });
+
+        const auditTrail = new AuditTrail(undefined, document.audit_trail);
+        auditTrail.update("Administrador", { status: 2 }, Document);
+
+        await document.merge({
+          status: 2,
+          audit_trail: auditTrail.getAsJson(),
+        });
+
+        let newDoc = await document.save();
+
+        return ctx.response.status(200).json({
+          message: "Documento eliminado y registro actualizado.",
+          results: newDoc,
+        });
+      } catch (error) {
+        console.error(error);
+        return ctx.response
+          .status(500)
+          .json({ message: "Error interno del Servidor", error });
+      }
+    }
+  }
 }
