@@ -1,2 +1,2 @@
-import "./auditTrail";
-import "./docs";
+export * from "./auditTrail";
+export * from "./docs";

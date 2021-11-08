@@ -11,3 +11,12 @@ export interface IAuditTrail {
   updated_on: number | null;
   updated_values: IUpdatedValues | null;
 }
+
+export interface IDataToken {
+  id: number;
+}
+
+export interface IDataUser {
+  id: number;
+  name: string;
+}

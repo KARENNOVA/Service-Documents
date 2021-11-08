@@ -1,7 +1,6 @@
-import { http } from "Config/app";
-import jwt from "jsonwebtoken";
+// import jwt from "jsonwebtoken";
 import moment from "moment";
-import { IDataToken, IDataUser, IUpdatedValues } from "../interfaces";
+import { IDataUser, IUpdatedValues } from "../interfaces";
 
 export default class AuditTrail {
   private token: string | null;
@@ -12,20 +11,27 @@ export default class AuditTrail {
   protected updatedOn: number | null;
   protected updatedValues: IUpdatedValues | null;
 
-  constructor(token?: string) {
+  constructor(token?: string, auditTrail?: any) {
     this.token = token ? token : null;
 
     this.dataUser = { id: 1, name: "Administrador" };
-    // if (this.token !== null) {
-    //   const decodedJWT = this.decodeJWT();
-
-    //   this.createdBy = decodedJWT.auditTrail.createdBy;
-    // }
-    this.createdBy = this.dataUser.name;
-    this.createdOn = moment().valueOf();
-    this.updatedBy = null;
-    this.updatedOn = null;
-    this.updatedValues = null;
+    if (this.token !== null) {
+      //   const decodedJWT = this.decodeJWT();
+      //   this.createdBy = decodedJWT.auditTrail.createdBy;
+    }
+    if (auditTrail) {
+      this.createdBy = auditTrail.created_by;
+      this.createdOn = auditTrail.created_on;
+      this.updatedBy = auditTrail.updated_by;
+      this.updatedOn = auditTrail.updated_on;
+      this.updatedValues = auditTrail.updated_values;
+    } else {
+      this.createdBy = this.dataUser.name;
+      this.createdOn = moment().valueOf();
+      this.updatedBy = null;
+      this.updatedOn = null;
+      this.updatedValues = null;
+    }
   }
 
   // GETTERS AND SETTERS
@@ -70,28 +76,15 @@ export default class AuditTrail {
    */
   public getAsJson() {
     return {
-      created_by: "Administrador",
-      created_on: moment().valueOf(),
-      updated_by: null,
-      updated_on: null,
-      updated_values: null,
+      created_by: this.createdBy,
+      created_on: this.createdOn,
+      updated_by: this.updatedBy === null ? null : this.updatedBy,
+      updated_on: this.updatedOn === null ? null : this.updatedOn,
+      updated_values: this.updatedValues === null ? null : this.updatedValues,
     };
   }
 
   // PRIVATE METHODS
-  private decodeJWT() {
-    try {
-      let decode = jwt.verify(this.token, "your-256-bit-secret");
-      console.log(decode);
-      return decode;
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  private getDataUser(id: number): any {
-    //   http.
-  }
 
   // PUBLIC METHODS
   /**
@@ -99,23 +92,30 @@ export default class AuditTrail {
    */
   public registry() {}
 
-  // export const newAuditTrail = (token: string = ""): IAuditTrail => {
-  //     if (token === "") {
-  //       let auditTrail: IAuditTrail = {
-  //         created_by: "Administrador",
-  //         created_on: String(new Date().getTime()),
-  //         updated_by: null,
-  //         updated_on: null,
-  //         updated_values: null,
-  //       };
-  //       return auditTrail;
-  //     }
-  //     return {
-  //       created_by: "Administrador",
-  //       created_on: String(new Date().getTime()),
-  //       updated_by: null,
-  //       updated_on: null,
-  //       updated_values: null,
-  //     };
-  //   };
+  public update(updatedBy: string, updatedValues: any, model: any) {
+    this.updatedBy = updatedBy;
+    this.updatedOn = moment().valueOf();
+
+    let tmpData: any = { ...model["$attributes"] };
+    let tmpDataNew: any = { ...tmpData };
+
+    delete updatedValues.audit_trail;
+
+    delete tmpDataNew.id;
+    delete tmpDataNew.audit_trail;
+
+    let _updatedValues: IUpdatedValues = {
+      lastest: { ...tmpDataNew },
+      new: updatedValues,
+    };
+
+    if (tmpData.audit_trail?.updated_values)
+      if (!tmpData.audit_trail.updated_values.oldest) {
+        delete tmpData.audit_trail;
+        delete tmpData.id;
+        _updatedValues.oldest = { ...tmpData };
+      } else _updatedValues.oldest = tmpData.audit_trail.updated_values.oldest;
+
+    this.updatedValues = _updatedValues;
+  }
 }
