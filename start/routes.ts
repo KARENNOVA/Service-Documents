@@ -61,7 +61,7 @@ Route.group(() => {
       return new DocsController().update(ctx);
     });
 
-    Route.delete("/", async (ctx) => {
+    Route.delete("/:id", async (ctx) => {
       const { default: DocsController } = await import(
         "App/Controllers/Http/DocsController"
       );
