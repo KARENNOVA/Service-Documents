@@ -6,13 +6,26 @@ export default class Document extends BaseModel {
   public id: string;
 
   @column()
-  public type: string | undefined;
-  @column()
-  public name: string;
-  @column()
   public original_name: string;
   @column()
   public path: string;
+
+  @column()
+  public type: number;
+  @column()
+  public name: string | undefined;
+  @column()
+  public description: string | undefined;
+  @column()
+  public person_type: number | undefined;
+  @column()
+  public rectifiable: number | undefined;
+  @column()
+  public active: number | undefined;
+  @column()
+  public rectifiable_status: number | undefined;
+  @column()
+  public competitor_path: string | undefined;
 
   @column()
   public status: number;

@@ -10,10 +10,17 @@ CREATE TABLE IF NOT EXISTS status (
 CREATE TABLE IF NOT EXISTS documents (
 	id VARCHAR(100) PRIMARY KEY,
 
-  type VARCHAR(120),
-  name VARCHAR(120) NOT NULL,
   original_name VARCHAR(120) NOT NULL,
-  path VARCHAR (2000) NOT NULL,
+  path VARCHAR (500) NOT NULL,
+
+  type INT,
+  name VARCHAR(120),
+  description VARCHAR(100),
+  person_type INT,
+  rectifiable INT,
+  active INT,
+  rectifiable_status INT,
+  competitor_path VARCHAR (500),
 
   status int not null,
   audit_trail JSON not null,

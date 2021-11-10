@@ -15,8 +15,8 @@ export default class DocsController {
   /**
    * uploadDocs
    */
-  public async uploadDocs(ctx: HttpContextContract) {
-    const pdf = ctx.request.file("pdf", {
+  public async uploadDocs({ request, response }: HttpContextContract) {
+    const pdf = request.file("pdf", {
       size: "500mb",
       extnames: ["pdf"],
     });
@@ -33,7 +33,6 @@ export default class DocsController {
     let date = new Date();
 
     let id = `${date.getFullYear()}${date.getMonth()}${date.getDay()}-${date.getHours()}${date.getMinutes()}${date.getSeconds()}${date.getMilliseconds()}`;
-
     // END Create ID
 
     const tmpPath = "uploads/core";
@@ -44,15 +43,15 @@ export default class DocsController {
         name: tmpName,
       });
     } catch (error) {
-      return ctx.response.json({
+      return response.json({
         message: "Error moviendo el archivo.",
         error,
       });
     }
 
     let name: string = "";
-    if (ctx.request.body().name) {
-      name = ctx.request.body().name;
+    if (request.body().name) {
+      name = request.body().name;
     } else {
       name = pdf.clientName.replace(/\.pdf/gi, "");
     }
@@ -67,21 +66,39 @@ export default class DocsController {
       audit_trail: auditTrail.getAsJson(),
     };
 
-    if (ctx.request.body().type) {
-      dataToCreate.type = ctx.request.body().type;
+    dataToCreate.type = parseInt(request.body().type);
+    if (request.body().description) {
+      dataToCreate.description = request.body().description;
+    }
+    if (request.body().person_type) {
+      dataToCreate.person_type = parseInt(request.body().person_type);
+    }
+    if (request.body().rectifiable) {
+      dataToCreate.rectifiable = parseInt(request.body().rectifiable);
+    }
+    if (request.body().active) {
+      dataToCreate.active = parseInt(request.body().active);
+    }
+    if (request.body().rectifiable_status) {
+      dataToCreate.rectifiable_status = parseInt(
+        request.body().rectifiable_status
+      );
+    }
+    if (request.body().competitor_path) {
+      dataToCreate.competitor_path = request.body().competitor_path;
     }
 
     try {
       const document = await Document.create(dataToCreate);
 
-      return ctx.response.json({
+      return response.json({
         message: "¡PDF guardado exitosamente!",
         results: document,
       });
     } catch (error) {
       console.error(error);
 
-      return ctx.response.json({
+      return response.json({
         message: "Error guardando el archivo.",
         error,
       });
