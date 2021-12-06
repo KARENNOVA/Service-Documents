@@ -25,7 +25,7 @@ Route.group(() => {
       const { default: DocsController } = await import(
         "App/Controllers/Http/DocsController"
       );
-      return new DocsController().uploadDocs(ctx);
+      return new DocsController().upload(ctx);
     });
 
     Route.get("/download/:id", async (ctx) => {
@@ -35,23 +35,27 @@ Route.group(() => {
       return new DocsController().download(ctx);
     });
 
-    Route.get("/:id", async (ctx) => {
-      const { default: DocsController } = await import(
-        "App/Controllers/Http/DocsController"
-      );
-      return new DocsController().details(ctx);
-    });
+    // Route.get("/:id", async (ctx) => {
+    //   const { default: DocsController } = await import(
+    //     "App/Controllers/Http/DocsController"
+    //   );
+    // });
 
     Route.get("/", async (ctx) => {
       const { default: DocsController } = await import(
         "App/Controllers/Http/DocsController"
       );
-
-      if (ctx.request.qs().ids) {
-        return new DocsController().getMany(ctx);
-      }
+      if (ctx.request.qs().id) return new DocsController().details(ctx);
 
       return new DocsController().getAll(ctx);
+    });
+
+    Route.get("/real-estates", async (ctx) => {
+      const { default: DocsController } = await import(
+        "App/Controllers/Http/DocsController"
+      );
+
+      return new DocsController().getMany(ctx);
     });
 
     Route.put("/", async (ctx) => {

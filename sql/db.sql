@@ -1,4 +1,5 @@
 DROP table if EXISTS status cascade;
+DROP table if EXISTS images cascade;
 DROP table if EXISTS documents;
 
 -- GENERAL TABLES
@@ -26,6 +27,20 @@ CREATE TABLE IF NOT EXISTS documents (
   audit_trail JSON not null,
 
   CONSTRAINT fk_documents_status
+    FOREIGN KEY(status) 
+	  REFERENCES status(id)
+);
+
+CREATE TABLE IF NOT EXISTS images (
+	id VARCHAR(100) PRIMARY KEY,
+  
+  original_name VARCHAR(120) NOT NULL,
+  path VARCHAR (500) NOT NULL,
+
+  status int not null,
+  audit_trail JSON not null,
+
+  CONSTRAINT fk_images_status
     FOREIGN KEY(status) 
 	  REFERENCES status(id)
 );

@@ -14,6 +14,7 @@ export interface IAuditTrail {
 
 export interface IDataToken {
   id: number;
+  iat: number;
 }
 
 export interface IDataUser {

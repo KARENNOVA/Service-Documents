@@ -1,5 +1,6 @@
 import { HttpContextContract } from "@ioc:Adonis/Core/HttpContext";
 import Application from "@ioc:Adonis/Core/Application";
+import Env from "@ioc:Adonis/Core/Env";
 import fs from "fs";
 
 // MODELS
@@ -9,99 +10,118 @@ import Document from "App/Models/Document";
 import AuditTrail from "./../../Utils/classes/AuditTrail";
 import { IAuditTrail, IUpdatedValues } from "App/Utils/interfaces/auditTrail";
 import moment from "moment";
+import { getToken } from "App/Utils/functions/jwt";
+import { messageError } from "App/Utils/functions";
+import { IResponseData } from "./../../Utils/interfaces/index";
 
 export default class DocsController {
   // POST
   /**
    * uploadDocs
    */
-  public async uploadDocs({ request, response }: HttpContextContract) {
-    const pdf = request.file("pdf", {
+  public async upload({ request, response }: HttpContextContract) {
+    const { token } = getToken(request.headers());
+
+    const pdfs = request.files("pdf", {
       size: "500mb",
       extnames: ["pdf"],
     });
 
-    if (!pdf) {
-      return;
-    }
-
-    if (!pdf.isValid) {
-      return pdf.errors;
-    }
-
-    // Create ID
-    let date = new Date();
-
-    let id = `${date.getFullYear()}${date.getMonth()}${date.getDay()}-${date.getHours()}${date.getMinutes()}${date.getSeconds()}${date.getMilliseconds()}`;
-    // END Create ID
-
-    const tmpPath = "uploads/core";
-    let tmpName = `${id} - ${pdf.clientName}`;
-
-    try {
-      await pdf.move(Application.tmpPath(tmpPath), {
-        name: tmpName,
-      });
-    } catch (error) {
-      return response.json({
-        message: "Error moviendo el archivo.",
-        error,
-      });
-    }
-
-    let name: string = "";
-    if (request.body().name) {
-      name = request.body().name;
-    } else {
-      name = pdf.clientName.replace(/\.pdf/gi, "");
-    }
-
-    const auditTrail: AuditTrail = new AuditTrail();
-    let dataToCreate: any = {
-      id,
-      name,
-      original_name: pdf.clientName,
-      path: pdf.filePath,
-      status: 1,
-      audit_trail: auditTrail.getAsJson(),
-    };
-
-    dataToCreate.type = parseInt(request.body().type);
-    if (request.body().description) {
-      dataToCreate.description = request.body().description;
-    }
-    if (request.body().person_type) {
-      dataToCreate.person_type = parseInt(request.body().person_type);
-    }
-    if (request.body().rectifiable) {
-      dataToCreate.rectifiable = parseInt(request.body().rectifiable);
-    }
-    if (request.body().active) {
-      dataToCreate.active = parseInt(request.body().active);
-    }
-    if (request.body().rectifiable_status) {
-      dataToCreate.rectifiable_status = parseInt(
-        request.body().rectifiable_status
+    if (!pdfs || pdfs.length === 0) {
+      return messageError(
+        undefined,
+        response,
+        "Ingrese el Documento a insertar.",
+        400
       );
     }
-    if (request.body().competitor_path) {
-      dataToCreate.competitor_path = request.body().competitor_path;
-    }
 
+    let multipleDataToCreate: any[] = [];
+    await Promise.all(
+      pdfs.map(async (pdf) => {
+        if (!pdf.isValid) {
+          return messageError(
+            pdf.errors,
+            response,
+            "Inserte un documento válido.",
+            400
+          );
+        }
+
+        // Create ID
+        let date = new Date();
+
+        const id = `${date.getFullYear()}${date.getMonth()}${date.getDay()}-${date.getHours()}${date.getMinutes()}${date.getSeconds()}${date.getMilliseconds()}`;
+        // END Create ID
+
+        const path =
+          request.qs()["from"] === "sabi"
+            ? Env.get("SABI_PATH_DOCS")
+            : Env.get("CULTURE_PATH_DOCS");
+        const tmpPath = path || "uploads/tmp";
+        let tmpName = `${id} - ${pdf.clientName}`;
+
+        try {
+          await pdf.move(Application.tmpPath(tmpPath), {
+            name: tmpName,
+          });
+        } catch (error) {
+          return messageError(
+            error,
+            response,
+            "Error moviendo el archivo.",
+            500
+          );
+        }
+
+        let name: string = pdf.clientName.replace(/\.pdf/gi, "");
+        if (request.body().name) name = request.body().name;
+
+        const auditTrail: AuditTrail = new AuditTrail(token);
+        await auditTrail.init();
+
+        let dataToCreate: any = {
+          id,
+          name,
+          original_name: pdf.clientName,
+          path: pdf.filePath,
+          status: 1,
+          audit_trail: auditTrail.getAsJson(),
+        };
+
+        dataToCreate.type = parseInt(request.body().type);
+        if (request.body().description) {
+          dataToCreate.description = request.body().description;
+        }
+        if (request.body().person_type) {
+          dataToCreate.person_type = parseInt(request.body().person_type);
+        }
+        if (request.body().rectifiable) {
+          dataToCreate.rectifiable = parseInt(request.body().rectifiable);
+        }
+        if (request.body().active) {
+          dataToCreate.active = parseInt(request.body().active);
+        }
+        if (request.body().rectifiable_status) {
+          dataToCreate.rectifiable_status = parseInt(
+            request.body().rectifiable_status
+          );
+        }
+        if (request.body().competitor_path) {
+          dataToCreate.competitor_path = request.body().competitor_path;
+        }
+        multipleDataToCreate.push(dataToCreate);
+      })
+    );
     try {
-      const document = await Document.create(dataToCreate);
+      const documents = await Document.createMany(multipleDataToCreate);
 
       return response.json({
-        message: "¡PDF guardado exitosamente!",
-        results: document,
+        message: "¡PDF(s) guardado exitosamente!",
+        results: documents,
       });
     } catch (error) {
-      console.error(error);
-
-      return response.json({
-        message: "Error guardando el archivo.",
-        error,
-      });
+      return messageError(error, response, "Error al guardar el archivo.", 500);
     }
   }
 
@@ -131,15 +151,24 @@ export default class DocsController {
     let id;
 
     if (_id) id = _id;
-    else id = ctx.request.params().id;
+    else id = ctx.request.qs().id;
 
     try {
-      const documents: any = await Document.query().where("id", id);
+      const documents = await Document.query()
+        .from("documents as d")
+        .select(["d.name as name_doc", "d.id as id_doc", "*"])
+        .innerJoin("status as s", "d.status", "s.id")
+        .where("d.id", id);
 
       if (_id) return documents[0];
       return ctx.response.json({
         message: `Información detallada del documento ${documents[0]["id"]}`,
-        results: documents[0],
+        results: {
+          ...documents[0]["$attributes"],
+          status: documents[0]["$attributes"]["name"],
+          name: documents[0]["$extras"]["name_doc"],
+          id: documents[0]["$extras"]["id_doc"],
+        },
       });
     } catch (error) {
       console.error(error);
@@ -155,7 +184,22 @@ export default class DocsController {
    */
   public async getAll(ctx: HttpContextContract) {
     try {
-      const results = await Document.all();
+      const documents = await Document.query()
+        .from("documents as d")
+        .select(["d.name as name_doc", "d.id as id_doc", "*"])
+        .innerJoin("status as s", "d.status", "s.id");
+
+      let results: any[] = [];
+      documents.map((doc) => {
+        results.push({
+          ...doc["$attributes"],
+          id: doc["$extras"]["id_doc"],
+          status: doc["$attributes"]["name"],
+          name: doc["$extras"]["name_doc"],
+        });
+      });
+
+      results = results.sort((a, b) => b.id - a.id);
 
       return ctx.response.json({
         message: "Documentos agregados en la Base de Datos",
@@ -174,29 +218,26 @@ export default class DocsController {
    */
   public async getMany(ctx: HttpContextContract) {
     const { ids } = ctx.request.qs();
-    let detailsArray: any[] = [];
+    let responseData: IResponseData = {
+      message: "Información detallada de los documentos.",
+      status: 200,
+    };
+
+    if (!ids) {
+      responseData["message"] = "El BI aún no tiene documentos relacionados.";
+      responseData["results"] = [];
+      return ctx.response.status(responseData["status"]).json(responseData);
+    }
     let idsArray: string[] = ids.split(",");
-
-    // await idsArray.map(async (id) => {
-    //   console.log(id);
-    //   const tmp = await this.details(ctx, id.trim());
-    //   console.log(tmp["$attributes"]);
-
-    //   detailsArray.push(tmp["$attributes"]);
-    // });
 
     try {
       const documents = await Document.findMany(idsArray);
-      console.log(documents);
-      documents.map((document) => {
-        detailsArray.push(document["$attributes"]);
-      });
 
       return ctx.response.json({
         message: `Información detallada de los documentos con ID: ${idsArray.join(
           ", "
         )}`,
-        results: detailsArray,
+        results: documents,
       });
     } catch (error) {
       console.error(error);
@@ -303,7 +344,9 @@ export default class DocsController {
    * delete
    */
   public async delete(ctx: HttpContextContract) {
-    const { id } = ctx.request.params();
+    const { request, response } = ctx;
+    const { token } = getToken(request.headers());
+    const { id } = request.params();
 
     if (id && typeof id === "string") {
       try {
@@ -319,25 +362,22 @@ export default class DocsController {
           );
         });
 
-        const auditTrail = new AuditTrail(undefined, document.audit_trail);
-        auditTrail.update("Administrador", { status: 2 }, Document);
+        const auditTrail = new AuditTrail(token);
+        await auditTrail.update({ status: 2 }, document);
 
-        await document.merge({
-          status: 2,
-          audit_trail: auditTrail.getAsJson(),
-        });
+        let newDoc = await document
+          .merge({
+            status: 2,
+            audit_trail: auditTrail.getAsJson(),
+          })
+          .save();
 
-        let newDoc = await document.save();
-
-        return ctx.response.status(200).json({
+        return response.status(200).json({
           message: "Documento eliminado y registro actualizado.",
           results: newDoc,
         });
       } catch (error) {
-        console.error(error);
-        return ctx.response
-          .status(500)
-          .json({ message: "Error interno del Servidor", error });
+        return messageError(error, response, undefined, 500);
       }
     }
   }
