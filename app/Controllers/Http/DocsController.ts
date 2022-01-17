@@ -13,6 +13,8 @@ import moment from "moment";
 import { getToken } from "App/Utils/functions/jwt";
 import { messageError } from "App/Utils/functions";
 import { IResponseData } from "./../../Utils/interfaces/index";
+import { saveArchives } from "App/Utils/functions/saveArchives";
+import { Path } from "App/Utils/enums";
 
 export default class DocsController {
   // POST
@@ -48,31 +50,34 @@ export default class DocsController {
           );
         }
 
+        let id = '';
+        await saveArchives(response, Env, pdf, Path.SABI_PATH_DOCS, (_id) => { id = _id} );
+
         // Create ID
-        let date = new Date();
+        // let date = new Date();
 
-        const id = `${date.getFullYear()}${date.getMonth()}${date.getDay()}-${date.getHours()}${date.getMinutes()}${date.getSeconds()}${date.getMilliseconds()}`;
-        // END Create ID
+        // const id = `${date.getFullYear()}${date.getMonth()}${date.getDay()}-${date.getHours()}${date.getMinutes()}${date.getSeconds()}${date.getMilliseconds()}`;
+        // // END Create ID
 
-        const path =
-          request.qs()["from"] === "sabi"
-            ? Env.get("SABI_PATH_DOCS")
-            : Env.get("CULTURE_PATH_DOCS");
-        const tmpPath = path || "uploads/tmp";
-        let tmpName = `${id} - ${pdf.clientName}`;
+        // const path =
+        //   request.qs()["from"] === "sabi"
+        //     ? Env.get("SABI_PATH_DOCS")
+        //     : Env.get("CULTURE_PATH_DOCS");
+        // const tmpPath = path || "uploads/tmp";
+        // let tmpName = `${id} - ${pdf.clientName}`;
 
-        try {
-          await pdf.move(Application.tmpPath(tmpPath), {
-            name: tmpName,
-          });
-        } catch (error) {
-          return messageError(
-            error,
-            response,
-            "Error moviendo el archivo.",
-            500
-          );
-        }
+        // try {
+        //   await pdf.move(Application.tmpPath(tmpPath), {
+        //     name: tmpName,
+        //   });
+        // } catch (error) {
+        //   return messageError(
+        //     error,
+        //     response,
+        //     "Error moviendo el archivo.",
+        //     500
+        //   );
+        // }
 
         let name: string = pdf.clientName.replace(/\.pdf/gi, "");
         if (request.body().name) name = request.body().name;
